@@ -1,0 +1,86 @@
+---
+title: "Pac12 Win Total: 1982-2017"
+
+output: html_document
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(sjmisc)
+library(stringr)
+library(shiny)
+
+
+# UW   = read_csv(file = "UW.csv")  %>% mutate(Team = "UW")
+# WSU  = read_csv(file = "wsu.csv") %>% mutate(Team = "WSU")
+# ORE  = read_csv(file = "ore.csv") %>% mutate(Team = "Ore")
+# OSU  = read_csv(file = "osu.csv") %>% mutate(Team = "OSU")
+# UTAH = read_csv(file = "utah.csv")%>% mutate(Team = "Utah")
+# CU   = read_csv(file = "CU.csv")  %>% mutate(Team = "CU")
+# STAN = read_csv(file = "stan.csv")%>% mutate(Team = "Stan")
+# CAL  = read_csv(file = "CAL.csv") %>% mutate(Team = "Cal")
+# USC  = read_csv(file = "usc.csv") %>% mutate(Team = "USC")
+# UCLA = read_csv(file = "ucla.csv")%>% mutate(Team = "UCLA")
+# UOA  = read_csv(file = "uoa.csv") %>% mutate(Team = "Ariz")
+# ASU  = read_csv(file = "asu.csv") %>% mutate(Team = "ASU")
+# 
+# 
+# PAC12 = rbind(UCLA,USC,UOA,ASU,STAN,CAL,CU,UTAH,OSU,ORE,WSU,UW)
+# colnames(PAC12)[10:13] = c("AP_Pre", "AP_Max", "AP_Post", "Coaches")
+ 
+load("PAC12.rda")
+
+# 
+# major.bowlnames = c("Rose Bowl", "Cotton Bowl", "Fiesta Bowl","Orange Bowl",
+#                     "BCS Championship")
+# PAC12 = PAC12 %>%
+#   filter(Year > 1982) %>%
+#   mutate(DG = factor(ifelse(Year > 2002, 1, 0),labels = c("Pre-DG","Post-DG")),
+#          Bowlgame = factor(ifelse(!is.na(Bowl),1,0)),
+#          width = ifelse(Team=="UCLA",0.6,0.5),
+#          Coach = str_split_fixed(Coaches, " \\(", n = 2 )[,1])%>% 
+#   separate(Bowl, c("Bowl", "Bowl_WL"), sep = "-") %>% 
+#          mutate(Bowl_Major = ifelse(Bowl %in% major.bowlnames,1,0))
+
+
+
+North = c("Cal","Stan","Ore","OSU","UW","WSU")
+South = c("USC","Utah","CU","Ariz","ASU")
+
+
+TeamCols = tibble(Team = sort(unique(PAC12$Team)),
+                  col = c("#C41E3A","#8C1D40","#003262","#000000","#154733",
+                                "#DC4405","#8c1515","#3284BF",
+                                "#9D2235","#cc0000","#4b2e83","#981e32"))
+```
+
+
+```{r WL, echo = F}
+
+inputPanel(
+  selectInput("Team", label = "Team",
+              choices = list(
+                'North' = North,
+                'South' = South
+              )
+            )
+        
+)
+
+
+renderPlot(
+  
+  ggplot(data = PAC12, aes(Year, W)) + 
+  geom_path(aes_string(group = 'Team'), alpha = 0.1) +
+  geom_path(data = PAC12 %>% filter(Team == "UCLA"), aes(Year, W), 
+            color = "Blue", lwd = 1)  +
+  geom_path(data = PAC12 %>% filter(Team %in% input$Team),
+            aes_string(x = "Year", y = "W", group = "Team"),
+            alpha = 1, lwd = 1, 
+            color = TeamCols %>% filter(Team == input$Team) %>% .$col)
+  
+)
+
+```
+

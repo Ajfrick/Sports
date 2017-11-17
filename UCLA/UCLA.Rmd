@@ -1,0 +1,141 @@
+---
+title: "UCLA Football: Dan Guerrero Comparison"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(sjmisc)
+library(stringr)
+
+UCLA = read_csv(file = "ucla.csv")
+
+colnames(UCLA)[10:13] = c("AP_Pre", "AP_Max", "AP_Post", "Coaches")
+
+usc_w = c(0,0,1,1,1,0,0,0,0,0,1,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0,1,0,1,1,1)
+pac_ch= c(1998, 1997, 1993, 1987,1985,1983,1982)
+
+major.bowlnames = c("Rose Bowl", "Cotton Bowl", "Fiesta Bowl","Orange Bowl")
+
+UCLA87 = UCLA %>% 
+  filter(Year > 1987 & Year != 2017) %>% 
+  mutate(DG = factor(ifelse(Year > 2002, 1, 0),labels = c("Pre-DG","Post-DG")),
+         Bowlgame = factor(ifelse(!is.na(Bowl),1,0)),
+         USC_W = usc_w[1:30],
+         Pac_Ch= factor(ifelse(Year %in% pac_ch,1,0)),
+         Coach = str_split_fixed(Coaches, " \\(", n = 2 )[,1]) %>% 
+  separate(Bowl, c("Bowl", "Bowl_WL"), sep = "-") %>% 
+  mutate(Bowl_Major = ifelse(Bowl %in% major.bowlnames,1,0)) %>% 
+  select(-Rk)
+
+
+UCLA82 = UCLA %>% 
+  filter(Year > 1982) %>% 
+  mutate(DG = factor(ifelse(Year > 2002, 1, 0),labels = c("Pre-DG","Post-DG")),
+         Bowlgame = factor(ifelse(!is.na(Bowl),1,0)),
+         USC_W = usc_w,
+         Pac_Ch= factor(ifelse(Year %in% pac_ch,1,0)),
+         Coach = str_split_fixed(Coaches, " \\(", n = 2 )[,1]) %>% 
+  separate(Bowl, c("Bowl", "Bowl_WL"), sep = "-") %>% 
+  mutate(Bowl_Major = ifelse(Bowl %in% major.bowlnames,1,0)) %>% 
+  select(-Rk)
+
+
+DG.Tab87 = UCLA87 %>% group_by(DG) %>% summarise('Avg Win %' = mean(Pct),
+                                    'Losing Record' = mean(Pct<.5),
+                                    '500 or Under' = mean(Pct <= 0.5),
+                                    'Ever Ranked' = mean(!is.na(AP_Max), na.rm = T),
+                                    'Final Ranked' = mean(!is.na(AP_Post), na.rm = T),
+                                    'USC Win' = mean(USC_W==1, na.rm = T),
+                                    #BowlG=mean(Bowlgame==1),
+                                    'Major Bowl'= mean(Bowl_Major==1),
+                                    'Pac12 Champ' = mean(Pac_Ch==1)) %>% 
+  gather(key = "metric", value = "Percent", -DG)
+  
+
+DG.Tab82 = UCLA82 %>% group_by(DG) %>% summarise('Avg Win %' = mean(Pct),
+                                    'Losing Record' = mean(Pct<.5),
+                                    '500 or Under' = mean(Pct <= 0.5),
+                                    'Ever Ranked' = mean(!is.na(AP_Max), na.rm = T),
+                                    'Final Ranked' = mean(!is.na(AP_Post), na.rm = T),
+                                    'USC Win' = mean(USC_W==1, na.rm = T),
+                                    #BowlG=mean(Bowlgame==1),
+                                    'Major Bowl'= mean(Bowl_Major==1),
+                                    'Pac12 Champ' = mean(Pac_Ch==1)) %>% 
+  gather(key = "metric", value = "Percent", -DG) %>% 
+  mutate(Category = factor(rep(c("Win-Loss","Win-Loss","Win-Loss","Ranking","Ranking",
+                               "Postseason","Postseason","Postseason"), each = 2)),
+         metric_f = factor(metric, 
+                           levels = c("Avg Win %","Losing Record","500 or Under",
+                                      "Ever Ranked","Final Ranked","USC Win","Pac12 Champ",
+                                      "Major Bowl")))
+
+DG.Tab87 %>% ggplot(aes(DG,Percent)) + 
+  geom_bar(aes(fill = DG), stat = "identity") + 
+  facet_wrap(~metric, ncol = nrow(DG.Tab87)/4) +
+  labs(x = "", title = "1987-2017") +
+  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())+
+  scale_fill_manual(values = c("#3c49fe", "#c7ab45"))
+
+
+Cap82 = tibble(metric = DG.Tab82$metric,
+               DG = DG.Tab82$DG,
+              text = rep(c("blah","de","fricking","dah"),times = 4),
+              ht = DG.Tab82$Percent+0.08)
+
+```
+
+####Win-Loss Records
+```{r,echo = F, fig.width=8}
+DG.Tab82 %>% filter(Category=="Win-Loss") %>% 
+  ggplot(aes(DG,Percent)) + 
+  geom_bar(aes(fill = DG), stat = "identity") + 
+  facet_wrap(~metric_f, ncol = 3) +
+  labs(x = "Win-Loss",
+       title = "1982-2001 vs 2002-Pres") +
+  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank(),
+        strip.text.x = element_text(size = 12)) +
+  scale_fill_manual(values = c("#3c49fe", "#c7ab45"))+
+  coord_cartesian(ylim = c(0,1)) 
+```
+
+During DG's tenure, UCLA's Avg Win % has fallen from 62.7% in the 20 years beforehand, to 53% in these 15 years. UCLA has ended the sesason with a losing record 47% of the time under DG, compared to 25% beforehand, and has finished .500 or under 53% of the time compared with 30% previously.
+
+
+####AP Ranking
+```{r,echo = F, fig.width=8}
+DG.Tab82 %>% filter(Category=="Ranking") %>% 
+  ggplot(aes(DG,Percent)) + 
+  geom_bar(aes(fill = DG), stat = "identity") + 
+  facet_wrap(~metric_f, ncol = 2) +
+  labs(x = "AP Ranking",
+       title = "1982-2001 vs 2002-Pres") +
+  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank(),
+        strip.text.x = element_text(size = 12)) +
+  scale_fill_manual(values = c("#3c49fe", "#c7ab45"))+
+  coord_cartesian(ylim = c(0,1))
+```
+
+In the 20 years prior to DG's tenure, UCLA was ranked at one point during 95% of seasons, compared to 60% under DG. And UCLA had finished in the top 25 AP 50% of the time prior to DG, compared to 20% since.
+
+####Postseason/USC
+```{r,echo = F, fig.width=8}
+DG.Tab82 %>% filter(Category=="Postseason") %>% 
+  ggplot(aes(DG,Percent)) + 
+  geom_bar(aes(fill = DG), stat = "identity") + 
+  facet_wrap(~metric_f, ncol = 3) +
+  labs(x = "Postseason & USC",
+       title = "1982-2001 vs 2002-Pres") +
+  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank(),
+        strip.text.x = element_text(size = 12)) +
+  scale_fill_manual(values = c("#3c49fe", "#c7ab45")) +
+  coord_cartesian(ylim = c(0,1))
+
+```
+
+USC victories have shifted from 60% to 27% under under DG, and UCLA has not played in a major bowl game* nor won a Pac12 Championship, compared to 35% and 30% respectively prior to DG's tenure.
+
+*Major Bowls include Rose Bowl, Orange Bowl, Fiesta Bowl, Cotton Bowl, or any BCS Bowl
+

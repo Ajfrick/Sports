@@ -1,0 +1,115 @@
+---
+title: "Pac12WL"
+author: "Andrew Frick"
+date: "November 6, 2017"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(sjmisc)
+library(stringr)
+knitr::opts_chunk$set(echo = TRUE)
+#                       
+# 
+# UW = read_csv(file = "UW.csv") %>% mutate(Team = "UW")
+# WSU = read_csv(file = "wsu.csv")%>% mutate(Team = "WSU")
+# ORE = read_csv(file = "ore.csv")%>% mutate(Team = "ORE")
+# OSU = read_csv(file = "osu.csv")%>% mutate(Team = "OSU")
+# UTAH = read_csv(file = "utah.csv")%>% mutate(Team = "Utah")
+# CU = read_csv(file = "CU.csv")%>% mutate(Team = "CU")
+# STAN = read_csv(file = "stan.csv")%>% mutate(Team = "Stan")
+# CAL = read_csv(file = "CAL.csv")%>% mutate(Team = "Cal")
+# USC = read_csv(file = "usc.csv")%>% mutate(Team = "USC")
+# UCLA = read_csv(file = "ucla.csv")%>% mutate(Team = "UCLA")
+# UOA = read_csv(file = "uoa.csv")%>% mutate(Team = "UoA")
+# ASU = read_csv(file = "asu.csv")%>% mutate(Team = "ASU")
+# 
+# 
+# 
+# 
+# PAC12 = rbind(UCLA,USC,UOA,ASU,STAN,CAL,CU,UTAH,OSU,ORE,WSU,UW) 
+# colnames(PAC12)[10:13] = c("AP_Pre", "AP_Max", "AP_Post", "Coaches")
+# 
+# PAC12 = PAC12 %>% 
+#   filter(Year >1982) %>% 
+#   mutate(DG = factor(ifelse(Year > 2002, 1, 0),labels = c("Pre-DG","Post-DG")),
+#          Bowlgame = factor(ifelse(!is.na(Bowl),1,0)),
+#          width = ifelse(Team=="UCLA",0.6,0.5)) %>% #,
+#     #     Coach = str_split_fixed(Coaches, " \\(", n = 2 )[,1]) %>% 
+#   # separate(Bowl, c("Bowl", "Bowl_WL"), sep = "-") %>% 
+#   # mutate(Bowl_Major = ifelse(Bowl %in% major.bowlnames,1,0)) %>% 
+#   select(-Rk)
+
+load("pac12.rda")
+
+PAC12 = PAC12 %>% filter(Year != 2017)
+PAC12 %>% ggplot(aes(Year, W)) + 
+  geom_path(aes(group = Team), alpha = 0.4) +
+  geom_smooth(aes(color = DG), method = "lm", se = F) + 
+  geom_point(alpha = 0.4)+#aes(color = Team)) + 
+  facet_wrap(~Team, ncol = 4)
+
+
+
+
+PAC12 %>% ggplot(aes(Year, W)) + 
+  geom_path(aes(color = Team) , lwd = 0.75, lty = 1) + 
+  
+  facet_wrap(~DG, ncol = 1, scales = "free_x") + 
+  scale_color_manual(values = c("#debe25","#120787","#000000","#35af4b",
+                                "#fe7800","#ef3b16","#3c49fe","#000bba",
+                                "#b60b0b","#e72828","#8014af","#c4c4c4"))
+
+
+UCLAwl = PAC12 %>% filter(Team == "UCLA")
+
+PAC12 %>% filter(Team != "UCLA") %>% 
+  ggplot(aes(Year, W)) + 
+  geom_path(aes(color = Team) , lwd = 0.55, lty = 1) + 
+  geom_path(data = UCLAwl, aes(Year,W), color = "#3c49fe", lwd = 1.1)+
+  facet_wrap(~DG, ncol = 1, scales = "free_x") + 
+  scale_color_manual(values = c("#debe25","#120787","#000000","#35af4b",
+                                "#fe7800","#ef3b16","#000bba",
+                                "#b60b0b","#e72828","#8014af","#c4c4c4"))
+```
+
+
+```{r}
+PACWL = PAC12 %>%  group_by(Team, DG) %>% summarise('Avg Win %' = mean(Pct),
+                                    'Losing Record' = mean(Pct<.5),
+                                    '500 or Under' = mean(Pct <= 0.5),
+                                    'Ever Ranked' = mean(!is.na(AP_Max), na.rm = T),
+                                    'Final Ranked' = mean(!is.na(AP_Post), na.rm = T),
+                                   # 'USC Win' = mean(USC_W==1, na.rm = T),
+                                     'BowlG' =mean(Bowlgame==1),
+                                    'Major Bowl'= mean(Bowl_Major==1)) %>% 
+                                    # 'Pac12 Champ' = mean(Pac_Ch==1)) %>% 
+  gather(key = "metric", value = "Percent", -c(Team,DG)) %>% 
+  arrange(metric)#%>% 
+  # mutate(Category = factor(rep(rep(c("Win-Loss","Win-Loss","Win-Loss","Ranking","Ranking",
+  #                              "Postseason","Postseason"), each = 2),times = 12)),
+  #        metric_f = factor(metric,
+  #                          levels = c("Avg Win %","Losing Record","500 or Under",
+  #                                     "Ever Ranked","Final Ranked",#"USC Win","Pac12 Champ",
+  #                                     "Major Bowl")))
+TeamCols = tibble(Team = sort(unique(PAC12$Team)),
+                  col = c("#C41E3A","#8C1D40","#003262","#000000","#154733",
+                                "#DC4405","#8c1515","#3284BF",
+                                "#9D2235","#cc0000","#4b2e83","#981e32"))
+
+
+PACWL %>% filter(metric == "Avg Win %") %>% 
+  ggplot(aes(x = Team,y = Percent, fill = Team),position = "dodge") +
+  geom_bar(stat = 'identity') +
+  facet_wrap(~DG, ncol = 2)   +
+  scale_fill_manual(values = c("#C41E3A","#8C1D40","#003262","#000000","#154733",
+                                "#DC4405","#8c1515","#3284BF",
+                                "#9D2235","#cc0000","#4b2e83","#981e32")) +
+  theme(axis.text.x = element_text(angle = 60,  vjust = 0.5, hjust=1),
+        axis.ticks.x = element_blank())
+
+
+
+```
+
